@@ -1,0 +1,7 @@
+{
+    "altitude": "double: The altitude, in meters, of the location.",
+    "latitude": "double: (Required) The latitude, in degrees, of the location.",
+    "longitude": "double: (Required) The longitude, in degrees, of the location.",
+    "relevantText": "string: The text to display on the lock screen when the pass is relevant. For example, a description of a nearby location, such as 'Store nearby on 1st and Main'."
+  }
+  

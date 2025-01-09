@@ -1,0 +1,8 @@
+{
+    "auxiliaryFields": "PassFields.AuxiliaryFields: An object that represents the fields that display additional information on the front of a pass. Inherits from PassFields.",
+    "backFields": "PassFields.BackFields: An object that represents the fields that display information on the back of a pass. Inherits from PassFields.",
+    "headerFields": "PassFields.HeaderFields: An object that represents the fields that display information at the top of a pass. Inherits from PassFields.",
+    "primaryFields": "PassFields.PrimaryFields: An object that represents the fields that display the most important information on a pass. Inherits from PassFields.",
+    "secondaryFields": "PassFields.SecondaryFields: An object that represents the fields that display supporting information on the front of a pass. Inherits from PassFields."
+  }
+  

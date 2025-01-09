@@ -1,0 +1,15 @@
+{
+    "ApiKey": "{{ApiKey}}",
+    "IsTest": false,
+    "AccessDateTime": "2018-11-07",
+    "PointOfSale": {
+        "CustomCode": "Shop_001",
+        "Name": "My Shop",
+        "Description": "My shop description"
+    },
+    "Products": [
+        {
+            "ProductId": "{{productId1}}"
+        }
+    ]
+}

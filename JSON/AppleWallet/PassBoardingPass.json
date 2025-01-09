@@ -1,0 +1,4 @@
+{
+    "transitType": "string: (Required) The type of transit for a boarding pass. This key is invalid for other types of passes. The system may use the value to display more information, such as showing an airplane icon for the pass on watchOS when the value is set to PKTransitTypeAir. Possible Values: PKTransitTypeAir, PKTransitTypeBoat, PKTransitTypeBus, PKTransitTypeGeneric, PKTransitTypeTrain."
+  }
+  

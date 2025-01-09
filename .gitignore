@@ -44,4 +44,3 @@ next-env.d.ts
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 
-AWS

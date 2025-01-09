@@ -1,0 +1,62 @@
+{
+  "id": "19f4b74f-a8ff-48ad-8b55-600e59ab3b51",
+  "name": "Demo Kiosk Environment",
+  "timestamp": 638688407113962430,
+  "_postman_variable_scope": "environment",
+  "values": [
+    {
+      "enabled": true,
+      "key": "baseUrl",
+      "value": "https://demo.api.experticket.com/api",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "ApiKey",
+      "value": "K8kyL+izkkkwitiley6jT2tMNwrknCh3HhAmm77bHAqB2l6Jwvl4vLI/9IhlR1RzXff49QS5zFoUgtt8WhRxLhytEst6JC2mRdOSY2Jzq98=",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "ApiKeyEncoded",
+      "value": "K8kyL%2bizkkkwitiley6jT2tMNwrknCh3HhAmm77bHAqB2l6Jwvl4vLI%2f9IhlR1RzXff49QS5zFoUgtt8WhRxLhytEst6JC2mRdOSY2Jzq98%3d",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "LanguageCodes",
+      "value": "es,en,fr,pt,ca-ES,it,zh-CN",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "PartnerId",
+      "value": "kf6zj5xksyy56",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "providerId1",
+      "value": "PROVIDER_ID_1",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "productBaseId1",
+      "value": "PRODUCTBASE_ID_1",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "productId1",
+      "value": "PRODUCT_ID_1",
+      "type": "text"
+    },
+    {
+      "enabled": true,
+      "key": "sessionId1",
+      "value": "SESSION_ID_1",
+      "type": "text"
+    }
+  ]
+}

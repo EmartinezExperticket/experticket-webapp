@@ -1,0 +1,22 @@
+Relational Database Service
+
+    EU (Ireland)
+
+        Amazon Relational Database Service for MySQL Community Edition
+
+            Free tier - $0.00 per RDS db.t4g.micro instance hour (or partial hour) running MySQL under monthly free tier | 10,267 Hrs | 0,00 USD
+            Actual - USD 0.036 per db.t3.small Single-AZ instance hour (or partial hour) running MySQL | 307,01 Hrs | 11,05 USD
+
+        Amazon Relational Database Service Provisioned Storage
+
+            Free tier  - $0.00 per GB-month of provisioned GP2 storage under monthly free tier running MySQL 8,253 GB-Mo | 0,00 USD
+            Actual - $0.127 per GB-month of provisioned GP3 storage running MySQL | 0,04 USD
+
+Virtual Private Cloud
+
+    EU (Ireland)
+
+        Amazon Virtual Private Cloud Public IPv4 Addresses
+
+            Free tier  - $0.00 per In-use public IPv4 address per hour for EC2 Free Tier - 308,534 Hrs | 0,00 USD
+            Actual - 0.005 per In-use public IPv4 address per hour - 926,395 Hrs | 3,92 USD

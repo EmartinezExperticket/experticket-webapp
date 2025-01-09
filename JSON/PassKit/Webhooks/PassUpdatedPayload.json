@@ -1,0 +1,66 @@
+{
+	"event": "PASS_EVENT_RECORD_UPDATED",
+	"pass": {
+		"id": "5u5EO18473CDVG0Vw0VgPV",
+		"classId": "24hmYozRggBJTtPt0Y2e3X",
+		"protocol": 100,
+		"personDetails": {
+			"displayName": "Patrick Kosterman",
+			"emailAddress": "patrick@passkit.com"
+		},
+		"metadata": {
+			"status": 1,
+			"lifecycleEvents": [1, 2],
+			"utm": {},
+			"altId": "5u5EO18473CDVG0Vw0VgPV",
+			"issueIpAddress": "92.237.10.176",
+			"installIpAddress": "92.237.10.176",
+			"renderLocation": {
+				"country": "GB",
+				"city": "Islington",
+				"state": "England",
+				"latitude": 51.536,
+				"longitude": -0.0925
+			},
+			"renderIpAddress": "92.237.10.176",
+			"installUserAgent": "PassKitCore/1.0 CFNetwork/1206 Darwin/20.1.0",
+			"renderUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
+			"installDeviceAttributes": [1, 512],
+			"renderDeviceAttributes": [4, 128, 1024],
+			"issueAt": {
+				"seconds": 1608644518,
+				"nanos": 743534000
+			},
+			"renderedAt": {
+				"seconds": 1608644536,
+				"nanos": 416327000
+			},
+			"firstInstalledAt": {
+				"seconds": 1608644748,
+				"nanos": 43410000
+			},
+			"lastInstalledAt": {
+				"seconds": 1608644748,
+				"nanos": 43410000
+			}
+		},
+		"recordData": {
+			"design.pointsType": "int",
+			"members.member.externalId": "ABC123",
+			"members.member.id": "5u5EO18473CDVG0Vw0VgPV",
+			"members.member.points": "100.000000",
+			"members.member.secondaryPoints": "0.000000",
+			"members.member.status": "ENROLLED",
+			"members.member.tierPoints": "0",
+			"members.program.id": "24hmYozRggBJTtPt0Y2e3X",
+			"members.program.name": "CodeREADR Points \u0026 Tier Demo",
+			"members.tier.id": "bronze",
+			"members.tier.name": "Bronze",
+			"person.displayName": "Patrick Kosterman",
+			"person.emailAddress": "patrick@passkit.com",
+			"universal.issued": "2020-12-22T13:41:58Z",
+			"universal.optOut": "no",
+			"universal.status": "PASS_INSTALLED"
+		}
+	}
+}

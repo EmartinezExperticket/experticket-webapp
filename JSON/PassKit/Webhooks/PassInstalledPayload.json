@@ -1,0 +1,37 @@
+{
+	"event": "PASS_EVENT_RECORD_CREATED",
+	"pass": {
+		"id": "5u5EO18473CDVG0Vw0VgPV",
+		"classId": "24hmYozRggBJTtPt0Y2e3X",
+		"protocol": 100,
+		"personDetails": {
+			"displayName": "Patrick Kosterman",
+			"emailAddress": "patrick@passkit.com"
+		},
+		"metadata": {
+			"utm": {},
+			"issueIpAddress": "92.237.10.176",
+			"issueAt": {
+				"seconds": 1608644518,
+				"nanos": 743534000
+			}
+		},
+		"recordData": {
+			"design.pointsType": "int",
+			"members.member.externalId": "ABC123",
+			"members.member.points": "10.000000",
+			"members.member.secondaryPoints": "0.000000",
+			"members.member.status": "ACTIVE",
+			"members.member.tierPoints": "0",
+			"members.program.id": "24hmYozRggBJTtPt0Y2e3X",
+			"members.program.name": "CodeREADR Points \u0026 Tier Demo",
+			"members.tier.id": "bronze",
+			"members.tier.name": "Bronze",
+			"person.displayName": "Patrick Kosterman",
+			"person.emailAddress": "patrick@passkit.com",
+			"universal.issued": "2020-12-22T13:41:58Z",
+			"universal.optOut": "no",
+			"universal.status": "PASS_ISSUED"
+		}
+	}
+}

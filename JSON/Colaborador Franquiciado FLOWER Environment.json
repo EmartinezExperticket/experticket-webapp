@@ -1,0 +1,63 @@
+{
+    "id": "a8f59f0c-eb94-464e-9296-4b210fddfa1c",
+    "name": "Colaborador Franquiciado FLOWER Environment",
+    "timestamp": 638683674425281622,
+    "_postman_variable_scope": "environment",
+    "values": [
+      {
+        "enabled": true,
+        "key": "baseUrl",
+        "value": "https://demo.api.experticket.com/api",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "ApiKey",
+        "value": "lA2tTNzNsCZzt+iubRpT1Y7vt28pH4b6NUswTXpEXR/EUuuLBiM837f2thvniael0oNIzH/wKfnu6xMoHsQ1nC4QbbvlmrwpEUHTV2JPILE=",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "ApiKeyEncoded",
+        "value": "lA2tTNzNsCZzt%2biubRpT1Y7vt28pH4b6NUswTXpEXR%2fEUuuLBiM837f2thvniael0oNIzH%2fwKfnu6xMoHsQ1nC4QbbvlmrwpEUHTV2JPILE%3d",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "LanguageCodes",
+        "value": "es,en,fr,pt,ca-ES,it,zh-CN",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "PartnerId",
+        "value": "9zdaxq1b4fysg",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "providerId1",
+        "value": "PROVIDER_ID_1",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "productBaseId1",
+        "value": "PRODUCTBASE_ID_1",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "productId1",
+        "value": "PRODUCT_ID_1",
+        "type": "text"
+      },
+      {
+        "enabled": true,
+        "key": "sessionId1",
+        "value": "SESSION_ID_1",
+        "type": "text"
+      }
+    ]
+  }
+  
