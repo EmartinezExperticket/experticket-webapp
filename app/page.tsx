@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
+import "./calendar-styles.css";
+import ChatBotModal from './components/ChatBotModal.tsx';
+import { useRouter } from "next/navigation";
 
 const generateUUID = () => {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
@@ -8,6 +13,7 @@ const generateUUID = () => {
       v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+  selectedDate: Date | null;
 };
 
 type ProviderType = {
@@ -25,6 +31,7 @@ type CartItem = {
   ProductName: string;
   Quantity: number;
   AccessDateTime?: string;
+  selectedDate?: string;
 };
 
 type SessionType = {
@@ -32,6 +39,20 @@ type SessionType = {
   SessionTime: string;
   GroupName: any;
   ProfileName: any;
+};
+
+type PaymentMethod = {
+  Type: number;
+  Name: string;
+};
+
+const normalizeDate = (date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const normalizeDateForComparison = (dateString) => {
+  const date = new Date(dateString);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
 export default function Home() {
@@ -50,7 +71,16 @@ export default function Home() {
   const [responseData, setResponseData] = useState<any>(null);
   const [sessions, setSessions] = useState<SessionType[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState<boolean>(false);
-  const [selectedSessions, setSelectedSessions] = useState({}); 
+  const [selectedSessions, setSelectedSessions] = useState({});
+  const [dateRange, setDateRange] = useState<Date[]>([]);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    normalizeDate(new Date())
+  );
+  const [minutesToExpiry, setMinutesToExpiry] = useState<number | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [reservationResponse, setReservationResponse] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -61,7 +91,7 @@ export default function Home() {
         const data = await response.json();
         setProviders(data.Providers || []);
 
-        console.log("Catalog data", data);
+        console.log("Providers data", data);
       } catch (error: any) {
         setError(error.message || "Unknown error occurred");
       } finally {
@@ -79,6 +109,60 @@ export default function Home() {
       );
 
       if (selectedProvider) {
+        // Paso 1: Verificar si algún TicketEnclosure tiene la propiedad Sessions
+        const hasSessions = selectedProvider.TicketEnclosures.some(
+          (enclosure) =>
+            enclosure.Sessions?.SessionsGroupSessionContents?.length > 0
+        );
+
+        if (hasSessions) {
+          console.log(
+            "Existe al menos un TicketEnclosure con la propiedad 'Sessions'"
+          );
+        } else {
+          console.log(
+            "No hay ningún TicketEnclosure con la propiedad 'Sessions'"
+          );
+        }
+
+        // Paso 2: Identificar los TicketEnclosureIds con sesiones
+        const ticketEnclosuresWithSessions =
+          selectedProvider.TicketEnclosures.filter(
+            (enclosure) =>
+              enclosure.Sessions?.SessionsGroupSessionContents?.length > 0
+          ).map((enclosure) => enclosure.TicketEnclosureId);
+
+        console.log(
+          "Recintos con sesiones (TicketEnclosureIds):",
+          ticketEnclosuresWithSessions
+        );
+
+        // Paso 3: Relacionar productos con los TicketEnclosureIds
+        const productsWithSessions = [];
+
+        selectedProvider.ProductBases.forEach((productBase) => {
+          productBase.Products?.forEach((product) => {
+            product.Tickets?.forEach((ticket) => {
+              if (
+                ticketEnclosuresWithSessions.includes(ticket.TicketEnclosureId)
+              ) {
+                productsWithSessions.push({
+                  productId: product.ProductId,
+                  productName: product.ProductName,
+                  ticketEnclosureId: ticket.TicketEnclosureId,
+                  ticketName: ticket.TicketName,
+                });
+              }
+            });
+          });
+        });
+
+        console.log(
+          "Productos relacionados con sesiones:",
+          productsWithSessions
+        );
+
+        // Paso 4: Continuar lógica para obtener sesiones si existen grupos de sesiones
         const sessionsGroupsIds = selectedProvider.TicketEnclosures.flatMap(
           (enclosure) =>
             enclosure.Sessions?.SessionsGroupSessionContents.map(
@@ -94,6 +178,9 @@ export default function Home() {
             .then((fetchedSessions) => {
               console.log("Fetched sessions", fetchedSessions);
               setSessions(fetchedSessions);
+
+              // Relacionar las sesiones obtenidas con los productos con sesiones si es necesario
+              // Aquí puedes implementar cualquier lógica adicional
             })
             .catch((error) =>
               console.error("Error al obtener sesiones:", error)
@@ -104,20 +191,75 @@ export default function Home() {
     }
   }, [selectedProviderId, providers]);
 
-  const handleSessionChange = (productId, session) => {
-    setSelectedSessions((prev) => ({
-      ...prev,
-      [productId]: session, // Actualiza la sesión para el producto específico
-    }));
+  // Hook para manejar la construcción del calendario
+  useEffect(() => {
+    if (selectedProviderId) {
+      const selectedProvider = providers.find(
+        (provider) => provider.ProviderId === selectedProviderId
+      );
+
+      if (selectedProvider) {
+        const datesSet = new Set<string>();
+
+        selectedProvider.ProductBases?.forEach((productBase) => {
+          productBase.Products?.forEach((product) => {
+            product.PricesAndDates?.forEach((priceAndDate) => {
+              if (priceAndDate.Dates) {
+                const priceDatesArray = priceAndDate.Dates.split(",");
+                priceDatesArray.forEach((date) => datesSet.add(date));
+              }
+            });
+          });
+        });
+
+        const uniqueDates = Array.from(datesSet).sort();
+        if (uniqueDates.length > 0) {
+          // Crear el rango de fechas
+          const minDate = new Date(uniqueDates[0]);
+          const maxDate = new Date(uniqueDates[uniqueDates.length - 1]);
+
+          const dateRange = [];
+          let currentDate = new Date(minDate);
+
+          while (currentDate <= maxDate) {
+            dateRange.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+
+          setDateRange(dateRange); // Actualiza el rango de fechas para el calendario
+        }
+      }
+    }
+  }, [selectedProviderId, providers]); // Dependencias relacionadas con el calendario
+
+  useEffect(() => {
+    if (transactionSuccess !== null) {
+      router.push(transactionSuccess ? "/compra-ok" : "/compra-error");
+    }
+  }, [transactionSuccess, router]);
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+    /* console.log("Selected date:", date); */
   };
 
-  const addToCart = (product: { ProductId: string; ProductName: string }, ticket?: { TicketId: string; SessionId?: string; SessionTime?: string }) => {
+
+  const addToCart = (
+    product: { ProductId: string; ProductName: string },
+    selectedDate: string,
+    ticket?: { TicketId: string; SessionId?: string; SessionTime?: string }
+  ) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.ProductId === product.ProductId);
-    
+      // Crear un identificador único para el producto basado en ProductId y selectedDate
+      const uniqueKey = `${product.ProductId}-${selectedDate}`;
+      const existingItem = prevCart.find(
+        (item) =>
+          `${item.ProductId}-${item.selectedDate}` === uniqueKey
+      );
+  
       if (existingItem) {
+        // Incrementar la cantidad si el producto con la misma fecha ya existe
         return prevCart.map((item) =>
-          item.ProductId === product.ProductId
+          `${item.ProductId}-${item.selectedDate}` === uniqueKey
             ? {
                 ...item,
                 Quantity: item.Quantity + 1,
@@ -126,20 +268,22 @@ export default function Home() {
             : item
         );
       }
-    
+  
+      // Agregar un nuevo producto si no existe en el carrito
       return [
         ...prevCart,
         {
           ...product,
+          selectedDate,
           Quantity: 1,
           Tickets: ticket ? [{ ...ticket }] : [],
         },
       ];
     });
+  
+    console.log("Cart updated:", cart);
   };
   
-  
-
   const removeFromCart = (productId: string) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find(
@@ -166,15 +310,35 @@ export default function Home() {
     return products;
   };
 
-  const handleTransactionCreate = async (reservationResponse: any) => {
-    
+  const handleTransactionCreate = async (
+    clientData: any
+  ) => {
+
+    setTransactionLoading(true);
+
     const { ReservationId, AccessDateTime, Products } = reservationResponse;
-  
-    if (!ReservationId || !AccessDateTime || !Products || Products.length === 0) {
-      console.error("Missing required fields in reservation response.");
+
+    if (
+      !ReservationId ||
+      !AccessDateTime ||
+      !Products ||
+      !clientData ||
+      !selectedPaymentMethod ||
+      Products.length === 0
+    ) {
+      console.error("Missing required fields in create transaction response.");
       return;
     }
-  
+
+    console.log("Creating transaction with data:", reservationResponse)
+    console.log("Creating transaction with clientData", clientData);
+
+/*     FullName: The client’s name. If we decide to forward the Client, then this field is mandatory.
+Surname: The client’s last name(s). If we decide to forward the Client, then this field is mandatory.
+Email: Client email.
+DocumentIdentifier: DNI or NIF (Spanish national ID or Tax ID number).
+PhoneNumber: Telephone number. */
+
     const transactionPayload = {
       IsTest: false,
       ReservationId,
@@ -186,11 +350,22 @@ export default function Home() {
           SessionId: ticket.SessionId,
         })),
       })),
+      Client: { 
+        FullName: clientData.name, 
+        Surname: clientData.lastName, 
+        Email: clientData.email, 
+        DocumentIdentifier: clientData.dni, 
+        PhoneNumber: clientData.phone, 
+       },
+      PaymentMethod: { PaymentMethodType: selectedPaymentMethod.Type, SendByEmail: false },
     };
-  
+
     try {
-      console.log("Transaction Payload:", JSON.stringify(transactionPayload, null, 2));
-  
+      console.log(
+        "Transaction Payload:",
+        JSON.stringify(transactionPayload, null, 2)
+      );
+
       const transactionResponse = await fetch("/api/transactions-create", {
         method: "POST",
         headers: {
@@ -198,64 +373,109 @@ export default function Home() {
         },
         body: JSON.stringify(transactionPayload),
       });
-  
+
       if (!transactionResponse.ok) {
         throw new Error("Failed to create transaction");
       }
-  
+
       const transactionData = await transactionResponse.json();
       console.log("Transaction Response:", transactionData);
-  
+
       if (transactionData.Success) {
         console.log("Transaction completed successfully.");
-        return transactionData;
+        setTransactionSuccess(true);
+        setResponseData(transactionData);
+        setTransactionLoading(false);
+
       } else {
         console.error(
           "Transaction failed with message:",
           transactionData.ErrorMessage || "Unknown error"
         );
+        router.push("/compra-error")
       }
     } catch (error) {
-      console.error("Error in handleTransactionCreate:", error.message || error);
+      console.error(
+        "Error in handleTransactionCreate:",
+        error.message || error
+      );
+      router.push("/compra-error")
     }
   };
-  
 
-  const handleCheckout = async (formData: any) => {
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      throw new Error("El carrito está vacío. Agrega productos antes de proceder.");
+    }
+  
     setTransactionLoading(true);
   
     try {
-      let accessDate;
-  
+      // Construir el arreglo de productos
       const productsArrayForReserve = cart.map((item) => {
+        
+        const accessDate = item.selectedDate?.split("/") // Dividir la fecha en partes (día, mes, año)
+        .reverse() // Invertir el orden a [año, mes, día]
+        .map((part) => part.padStart(2, "0")) // Asegurarse de que los meses y días tengan dos dígitos
+        .join("-"); // Unir las partes con guiones
+      
+      console.log("Access Date (formateada):", accessDate);
 
-        const selectedSession = selectedSessions[item.ProductId];
-        const productPayload: any = {
+        if (item.Tickets && item.Tickets.length > 0) {
+          return {
+            ProductId: item.ProductId,
+            Quantity: item.Quantity,
+            AccessDateTime: accessDate, // Fecha relacionada con el producto
+            Tickets: item.Tickets.map((ticket) => ({
+              TicketId: ticket.TicketId,
+              SessionId: ticket.SessionId,
+              AccessDateTime: accessDate, // Fecha relacionada con el ticket
+            })),
+          };
+        }
+  
+        return {
           ProductId: item.ProductId,
           Quantity: item.Quantity,
-          AccessDateTime: selectedSession?.SessionTime.split("T")[0] || item.AccessDateTime?.split("T")[0],
+          AccessDateTime: accessDate, // Fecha relacionada con el producto
         };
-  
-        if (item.Tickets?.length) {
-          productPayload.Tickets = item.Tickets.map((ticket) => ({
-            TicketId: ticket.TicketId,
-            SessionId: ticket.SessionId,
-          }));
-        }
-
-        accessDate = selectedSession?.SessionTime.split("T")[0] || item.AccessDateTime?.split("T")[0]
-  
-        return productPayload;
       });
+
+          // **Consulta de Precios en Tiempo Real**
+    const availabilityPayload = {
+      ProductIds: productsArrayForReserve.map((product) => product.ProductId),
+      AccessDates: productsArrayForReserve.map((product) => product.AccessDateTime),
+    };
+
+    console.log("Payload de disponibilidad y precios:", JSON.stringify(availabilityPayload, null, 2));
+
+    const availabilityResponse = await fetch("/api/availability-price-realtimePrices", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(availabilityPayload),
+    });
+
+    if (!availabilityResponse.ok) {
+      throw new Error("Error al obtener los precios en tiempo real.");
+    }
+
+    const availabilityData = await availabilityResponse.json();
+
+    console.log("Respuesta de disponibilidad y precios:", availabilityData);
   
       const reservePayload = {
-        AccessDateTime: accessDate,
+        ApiKey: process.env.NEXT_PUBLIC_API_KEY,
         IsTest: false,
         Products: productsArrayForReserve,
+        AccessDateTime: selectedDate.toISOString().split("T")[0],
       };
   
+     /*  .toISOString().split("T")[0]; */
       console.log("Payload de reserva:", JSON.stringify(reservePayload, null, 2));
   
+      // Realizar la solicitud de reserva
       const reserveResponse = await fetch("/api/reservations-reserve", {
         method: "POST",
         headers: {
@@ -265,32 +485,61 @@ export default function Home() {
       });
   
       if (!reserveResponse.ok) {
-        throw new Error("Failed to reserve products");
+        throw new Error("Falló la reserva de productos.");
       }
   
       const reserveData = await reserveResponse.json();
-      console.log("Reservation response:", reserveData);
+      console.log("Respuesta de reserva:", reserveData);
   
+
+
+      
       if (!reserveData.Success) {
         throw new Error(
-          reserveData.ErrorMessage || "Reservation failed for unknown reasons."
+          reserveData.ErrorMessage || "La reserva falló por razones desconocidas."
         );
       }
   
-      // Llamar a handleTransactionCreate con los datos de la reserva
-      const transactionData = await handleTransactionCreate(reserveData);
+      // Procesar el response (por ejemplo, manejar PaymentMethods)
+      const paymentMethodsResponse = await fetch(
+        `/api/payment-methods?reservationID=${encodeURIComponent(
+          reserveData.ReservationId
+        )}`,
+        {
+          method: "GET",
+        }
+      );
   
-      setTransactionSuccess(true);
-      setResponseData(transactionData);
+      if (!paymentMethodsResponse.ok) {
+        throw new Error("No se pudieron obtener los métodos de pago.");
+      }
+  
+      const paymentMethodsData = await paymentMethodsResponse.json();
+      console.log("Métodos de pago:", paymentMethodsData);
+  
+      if (!paymentMethodsData.Success) {
+        throw new Error("Falló la obtención de métodos de pago desde la API.");
+      }
+  
+      // Actualizar el estado con los métodos de pago (si corresponde)
+      setPaymentMethods(paymentMethodsData.PaymentMethods);
+  
+      // Actualiza el temporizador de expiración
+      setMinutesToExpiry(reserveData.MinutesToExpiry);
+
+      setReservationResponse(reserveData);
 
     } catch (error) {
       console.error("Error en handleCheckout:", error);
       setTransactionSuccess(false);
       setResponseData({
-        error: error instanceof Error ? error.message : "Unknown error occurred.",
+        error:
+          error instanceof Error ? error.message : "Se produjo un error desconocido.",
       });
+      router.push("/compra-error")
     } finally {
       setTransactionLoading(false);
+      
     }
   };
   
@@ -351,7 +600,10 @@ export default function Home() {
   const handleProviderChange = (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
+    console.log("Provider selected:", event.target.value);
+
     setSelectedProviderId(event.target.value);
+    setSessions([]);
   };
 
   return (
@@ -412,133 +664,159 @@ export default function Home() {
                               {provider.ProviderName}
                             </h2>
 
+                            {/*       <h2>Select a Date</h2> */}
+                            <Calendar
+                              minDate={dateRange[0]}
+                              maxDate={dateRange[dateRange.length - 1]}
+                              tileDisabled={({ date }) => {
+                                const isDisabled = !dateRange.some(
+                                  (d) =>
+                                    normalizeDate(d).getTime() ===
+                                    normalizeDate(date).getTime()
+                                );
+                                return isDisabled;
+                              }}
+                              onClickDay={(date) =>
+                                handleDateClick(normalizeDate(date))
+                              }
+                              className="my-4 mx-auto border rounded-lg shadow-lg"
+                              tileClassName={({ date }) => {
+                                // Example: Highlight weekends with red text
+                                if (
+                                  date.getDay() === 0 ||
+                                  date.getDay() === 6
+                                ) {
+                                  return "text-blue-500"; // Tailwind class for red text
+                                }
+                                return undefined; // Return undefined for normal days
+                              }}
+                            />
+
+                            {selectedDate && (
+                              <p>
+                                Fecha seleccionada:{" "}
+                                {selectedDate.toLocaleDateString()}
+                              </p>
+                            )}
+
                             <div className="border rounded p-4 mt-4">
-                              {provider.ProductBases.map((productBase) => (
-                                <ProductBase
-                                  key={productBase.ProductBaseId}
-                                  productBase={productBase}
-                                  addToCart={addToCart}
-                                  removeFromCart={removeFromCart}
-                                  cart={cart}
-                                  fetchSessions={fetchSessions} // Correcto: se pasa la función fetchSessions
-                                  sessions={sessions} // Correcto: se pasa el estado de las sesiones
-                                  setCart={setCart} // Correcto: se pasa la función para actualizar el carrito
-                                  setSessions={setSessions} // Correcto: se pasa la función para actualizar las sesiones
-                                />
-                              ))}
+                              {/* Iterar por los recintos */}
+                              {provider.TicketEnclosures.map((enclosure) => {
+                                // Obtener productos relacionados con este TicketEnclosure y filtrarlos por fecha seleccionada
+                                const productsForEnclosure =
+                                  provider.ProductBases.flatMap((productBase) =>
+                                    productBase.Products.filter((product) => {
+                                      // Filtrar por fecha seleccionada
+                                      const isAvailableOnDate =
+                                        product.PricesAndDates.some(
+                                          (priceDate) => {
+                                            if (!selectedDate) return false;
+
+                                            const dateArray =
+                                              priceDate.Dates.split(",").map(
+                                                (d) =>
+                                                  normalizeDateForComparison(
+                                                    new Date(d.trim())
+                                                  )
+                                              );
+
+                                            return dateArray.some(
+                                              (d) =>
+                                                d.getTime() ===
+                                                normalizeDateForComparison(
+                                                  selectedDate
+                                                ).getTime()
+                                            );
+                                          }
+                                        );
+
+                                      // Verificar si el producto pertenece al recinto actual
+                                      const belongsToEnclosure =
+                                        product.Tickets.some(
+                                          (ticket) =>
+                                            ticket.TicketEnclosureId ===
+                                            enclosure.TicketEnclosureId
+                                        );
+
+                                      return (
+                                        isAvailableOnDate && belongsToEnclosure
+                                      );
+                                    }).map((product) => ({
+                                      ...product,
+                                      productBaseName:
+                                        productBase.ProductBaseName,
+                                      HasSessions: product.Tickets.some(
+                                        (ticket) =>
+                                          provider.TicketEnclosures.some(
+                                            (enclosure) =>
+                                              enclosure.TicketEnclosureId ===
+                                                ticket.TicketEnclosureId &&
+                                              enclosure.Sessions
+                                                ?.SessionsGroupSessionContents
+                                                ?.length > 0
+                                          )
+                                      ),
+                                    }))
+                                  );
+
+                                // No mostrar recintos sin productos disponibles en la fecha seleccionada
+                                if (productsForEnclosure.length === 0)
+                                  return null;
+
+                                // Agrupar productos por categoría (ProductBaseName)
+                                const productsByCategory =
+                                  productsForEnclosure.reduce(
+                                    (acc, product) => {
+                                      const categoryName =
+                                        product.productBaseName ||
+                                        "Sin Categoría";
+                                      if (!acc[categoryName])
+                                        acc[categoryName] = [];
+                                      acc[categoryName].push(product);
+                                      return acc;
+                                    },
+                                    {}
+                                  );
+
+                                return (
+                                  <div
+                                    key={enclosure.TicketEnclosureId}
+                                    className="mb-6"
+                                  >
+                                    {/* Encabezado principal: Nombre del Recinto */}
+                                    <h2 className="text-xl font-bold text-blue-400">
+                                      {enclosure.TicketEnclosureName}
+                                    </h2>
+
+                                    {/* Renderizar productos agrupados por categoría */}
+                                    {Object.entries(productsByCategory).map(
+                                      ([categoryName, productsInCategory]) => (
+                                        <div
+                                          key={`${enclosure.TicketEnclosureId}-${categoryName}`}
+                                          className="mt-4"
+                                        >
+                                          <ProductBase
+                                            key={categoryName}
+                                            productBase={{
+                                              ProductBaseName: categoryName,
+                                              Products: productsInCategory,
+                                            }}
+                                            addToCart={addToCart}
+                                            removeFromCart={removeFromCart}
+                                            cart={cart}
+                                            fetchSessions={fetchSessions}
+                                            sessions={sessions}
+                                            setSessions={setSessions}
+                                            selectedDate={selectedDate}
+                                            setSessions={setSessions}
+                                          />
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-
-                            {provider.ProviderName === "Axess Demo Catalog" && (
-  <>
-    {sessionsLoading ? (
-      <div className="text-center my-4">
-        <p>Cargando sesiones, por favor espera...</p>
-      </div>
-    ) : (
-      <div className="border p-4 rounded mt-4">
-        <h3 className="font-bold mb-2">Sesiones Disponibles</h3>
-
-        {/* Mostrar advertencia si no hay productos de Session Products en el carrito */}
-        {!cart.some((item) =>
-          provider.ProductBases.some(
-            (base) =>
-              base.ProductBaseName === "Session Products" &&
-              base.Products.some(
-                (product) => product.ProductId === item.ProductId
-              )
-          )
-        ) ? (
-          <p className="text-red-500">
-            Selecciona un producto de "Session Products" antes de elegir una sesión.
-          </p>
-        ) : (
-          <>
-            {/* Dropdown de Sesiones */}
-            <select
-  className="border p-2 rounded w-full text-black"
-  onChange={(e) => {
-    const selectedSession = sessions.find(
-      (session) => session.SessionId === e.target.value
-    );
-
-    if (selectedSession) {
-      const product = cart.find((item) =>
-        provider.ProductBases.some(
-          (base) =>
-            base.Products.some(
-              (product) => product.ProductId === item.ProductId
-            )
-        )
-      );
-
-      if (product) {
-        const ticketId = provider.ProductBases
-          .find((base) =>
-            base.Products.some(
-              (p) => p.ProductId === product.ProductId
-            )
-          )
-          ?.Products.find(
-            (p) => p.ProductId === product.ProductId
-          )?.Tickets[0]?.TicketId;
-
-        setCart((prevCart) =>
-          prevCart.map((item) =>
-            item.ProductId === product.ProductId
-              ? {
-                  ...item,
-                  AccessDateTime: selectedSession.SessionTime,
-                  Tickets: [
-                    {
-                      TicketId: ticketId,
-                      SessionId: selectedSession.SessionId,
-                      AccessDateTime: selectedSession.SessionTime,
-                    },
-                  ],
-                }
-              : item
-          )
-        );
-      }
-    }
-  }}
->
-  <option value="">Selecciona una sesión</option>
-  {sessions.map((session) => (
-    <option key={session.SessionId} value={session.SessionId}>
-      {new Date(session.SessionTime).toLocaleString()}
-    </option>
-  ))}
-</select>
-
-            {/* Mostrar la fecha seleccionada */}
-            {cart.some((item) => selectedSessions[item.ProductId]) && (
-              <div className="mt-4">
-                <h4 className="font-medium">Fecha Seleccionada:</h4>
-                <p>
-                  {new Date(
-                    selectedSessions[
-                      cart.find((item) =>
-                        provider.ProductBases.some(
-                          (base) =>
-                            base.ProductBaseName === "Session Products" &&
-                            base.Products.some(
-                              (product) => product.ProductId === item.ProductId
-                            )
-                        )
-                      )?.ProductId || ""
-                    ]?.SessionTime!
-                  ).toLocaleString()}
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )}
-  </>
-)}
-
                           </div>
                         ))}
                     </div>
@@ -549,114 +827,42 @@ export default function Home() {
           </div>
 
           <div
-            className="fixed w-1/3 bg-black text-white border rounded shadow-md p-4 mt-[147px] right-[50px]"
-            style={{ height: "fit-content" }}
-          >
-            <h2 className="text-xl font-semibold mb-4">Carrito</h2>
-            <p className="mb-2">
-              Productos en el carrito: {totalProductsInCart}
-            </p>
-            {cart.length === 0 ? (
-              <p>No hay productos en el carrito.</p>
-            ) : (
-              <div>
-                {cart.map((item) => (
-                  <div
-                    key={item.ProductId}
-                    className="flex justify-between items-center border-b border-white py-2"
-                  >
-                    <span>{item.ProductName}</span>
-                    <span className="font-semibold">x{item.Quantity}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => setCheckout(true)}
-              className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-green-500"
-            >
-              Finalizar Compra ({totalProductsInCart})
-            </button>
+  className="fixed w-1/3 bg-black text-white border rounded shadow-md p-4 mt-[147px] right-[50px]"
+  style={{ height: "fit-content" }}
+>
+  <h2 className="text-xl font-semibold mb-4">Carrito</h2>
+  <p className="mb-2">
+    Productos en el carrito: {cart.reduce((sum, item) => sum + item.Quantity, 0)}
+  </p>
+  {cart.length === 0 ? (
+    <p>No hay productos en el carrito.</p>
+  ) : (
+    <div>
+      {cart.map((item, index) => (
+        <div
+          key={`${item.ProductId}-${item.selectedDate}-${index}`}
+          className="flex justify-between items-center border-b border-white py-2"
+        >
+          <div className="flex flex-col">
+            <span>{item.ProductName}</span>
+            <span className="text-sm text-gray-400">Fecha: {item.selectedDate}</span>
           </div>
+          <span className="font-semibold">x{item.Quantity}</span>
+        </div>
+      ))}
+    </div>
+  )}
+  <button
+    onClick={() => {
+      setCheckout(true);
+      handleCheckout();
+    }}
+    className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-green-500"
+  >
+    Finalizar Compra ({cart.reduce((sum, item) => sum + item.Quantity, 0)})
+  </button>
+</div>
 
-          {/*           <div className="mt-8">
-            <button
-              onClick={async () => {
-                setSessionsLoading(true);
-                await fetchSessions();
-                setSessionsLoading(false);
-              }}
-              className={`w-full px-4 py-2 ${
-                sessionsLoading ? "bg-gray-300" : "bg-blue-500"
-              } text-white rounded ${
-                sessionsLoading ? "" : "hover:bg-green-500"
-              }`}
-              disabled={sessionsLoading}
-            >
-              {sessionsLoading ? "Cargando..." : "Ver Sesiones"}
-            </button>
-
-            {sessions.length > 0 && (
-              <div className="border p-4 rounded mt-4">
-                <h3 className="font-bold mb-2">Sesiones Disponibles</h3>
-                {Object.entries(
-                  sessions.reduce<
-                    Record<string, Record<string, SessionType[]>>
-                  >((acc, session) => {
-                    if (!acc[session.ProfileName])
-                      acc[session.ProfileName] = {};
-                    if (!acc[session.ProfileName][session.GroupName]) {
-                      acc[session.ProfileName][session.GroupName] = [];
-                    }
-                    acc[session.ProfileName][session.GroupName].push(session);
-                    return acc;
-                  }, {})
-                ).map(([profileName, groups], index) => (
-                  <div key={profileName} className="mt-2">
-                    <h4
-                      className="font-semibold cursor-pointer"
-                      onClick={() => {
-                        const element = document.getElementById(
-                          `group-${index}`
-                        );
-                        if (element) {
-                          element.style.display =
-                            element.style.display === "none" ? "block" : "none";
-                        }
-                      }}
-                    >
-                      {profileName}
-                      <span className="ml-2 text-sm text-blue-500">
-                        Ver Sesiones
-                      </span>
-                    </h4>
-                    <div
-                      id={`group-${index}`}
-                      style={{ display: "none" }}
-                      className="ml-4"
-                    >
-                      {Object.entries(groups).map(
-                        ([groupName, groupSessions]) => (
-                          <div key={groupName} className="mt-2">
-                            <h5 className="font-medium">{groupName}</h5>
-                            <ul>
-                              {groupSessions.map((session) => (
-                                <li key={session.SessionId}>
-                                  {new Date(
-                                    session.SessionTime
-                                  ).toLocaleString()}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div> */}
         </div>
       ) : transactionSuccess !== null ? (
         <div className="container mx-auto p-4">
@@ -677,45 +883,18 @@ export default function Home() {
         <>
           <Checkout
             cart={cart}
-            onConfirm={handleCheckout}
+            onConfirm={handleTransactionCreate}
             transactionLoading={transactionLoading}
+            paymentMethods={paymentMethods}
+            selectedPaymentMethod={selectedPaymentMethod}
+            setSelectedPaymentMethod={setSelectedPaymentMethod}
+            minutesToExpiry={minutesToExpiry}
           />
         </>
       )}
     </div>
   );
 }
-
-type ProviderProps = {
-  provider: ProviderType;
-  addToCart: (product: { ProductId: string; ProductName: string }) => void;
-  removeFromCart: (productId: string) => void;
-  cart: CartItem[];
-};
-
-const Provider = ({
-  provider,
-  addToCart,
-  removeFromCart,
-  cart,
-}: ProviderProps) => {
-  return (
-    <div className="border rounded p-4">
-      <h2 className="text-lg font-semibold">{provider.ProviderName}</h2>
-      <div className="mt-2">
-        {provider.ProductBases.map((productBase) => (
-          <ProductBase
-            key={productBase.ProductBaseId}
-            productBase={productBase}
-            addToCart={addToCart}
-            removeFromCart={removeFromCart}
-            cart={cart}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
 
 type ProductBaseProps = {
   productBase: {
@@ -735,7 +914,7 @@ type ProductBaseProps = {
       }>
     >;
   };
-  addToCart: (product: { ProductId: string; ProductName: string }) => void;
+  addToCart: (product: { ProductId: string; ProductName: string }, SelectedDate: string) => void;
   removeFromCart: (productId: string) => void;
   fetchSessions: (productId: string) => Promise<void>; // Función para obtener sesiones
   cart: Array<{
@@ -748,6 +927,7 @@ type ProductBaseProps = {
     SessionId: string;
     SessionTime: string;
   }>;
+  selectedDate: Date;
   setCart: React.Dispatch<
     React.SetStateAction<
       Array<{
@@ -764,103 +944,148 @@ const ProductBase = ({
   productBase,
   addToCart,
   removeFromCart,
-  fetchSessions,
+  selectedDate,
   cart,
-  setCart,
   sessions,
-  setSessions,
 }: ProductBaseProps) => {
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    null
+  );
+
+  // Función para obtener la cantidad total de un producto en el carrito por fecha
+  const getQuantityByDate = (productId: string, date: string) => {
+    return cart
+      .filter((item) => item.ProductId === productId && item.selectedDate === date)
+      .reduce((sum, item) => sum + item.Quantity, 0);
+  };
+
   return (
     <div className="border rounded p-4">
       <h2 className="text-lg font-semibold">{productBase.ProductBaseName}</h2>
       <div className="mt-2">
-      {productBase.Products.map((product) => {
-  const cartItem = cart.find(
-    (item) => item.ProductId === product.ProductId
-  );
+        {productBase.Products.map((product) => {
+          // Cantidad total por fecha seleccionada
+          const quantityForDate = selectedDate
+            ? getQuantityByDate(product.ProductId, selectedDate.toLocaleDateString())
+            : 0;
 
-  return (
-    <div key={product.ProductId} className="flex flex-col p-2 border-b">
-      {/* Nombre del producto */}
-      <div className="flex justify-between items-center">
-        <span>{product.ProductName}</span>
-        <div className="flex items-center space-x-2">
-          {/* Botón para decrementar */}
-          <button
-            className="px-2 py-1 bg-red-400 rounded hover:bg-red-600"
-            onClick={() => removeFromCart(product.ProductId)}
-            disabled={!cartItem || cartItem.Quantity === 0}
-          >
-            -
-          </button>
-          {/* Mostrar cantidad */}
-          <span className="px-2">{cartItem ? cartItem.Quantity : 0}</span>
-          {/* Botón para incrementar */}
-          <button
-            className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700"
-            onClick={() =>
-              addToCart({
-                ProductId: product.ProductId,
-                ProductName: product.ProductName,
-              })
-            }
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      {/* Mostrar sesiones si está en el carrito y tiene sesiones */}
-      {cartItem && product.HasSessions && (
-        <div className="mt-4">
-          <select
-            className="border p-2 rounded w-full"
-            onChange={(e) => {
-              const selectedSession = sessions.find(
-                (session) => session.SessionId === e.target.value
-              );
-              if (selectedSession) {
-                setCart((prevCart) =>
-                  prevCart.map((item) =>
-                    item.ProductId === product.ProductId
-                      ? {
-                          ...item,
-                          AccessDateTime: selectedSession.SessionTime,
-                          SessionId: selectedSession.SessionId, // Aquí se agrega el SessionId
+          return (
+            <div key={product.ProductId} className="flex flex-col p-2 border-b">
+              {/* Nombre del producto */}
+              <div className="flex justify-between items-center">
+                <span>{product.ProductName}</span>
+                <div className="flex items-center space-x-2">
+                  {/* Botón para decrementar */}
+                  <button
+                    className="px-2 py-1 bg-red-400 rounded hover:bg-red-600"
+                    onClick={() => removeFromCart(product.ProductId)}
+                    disabled={quantityForDate === 0}
+                  >
+                    -
+                  </button>
+                  {/* Mostrar cantidad por fecha */}
+                  <span className="px-2">
+                    {quantityForDate}
+                  </span>
+                  {/* Botón para incrementar */}
+                  <button
+                    className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-700"
+                    onClick={() => {
+                      if (product.HasSessions) {
+                        if (!selectedSessionId) {
+                          alert("Por favor selecciona una sesión primero.");
+                          return;
                         }
-                      : item
-                  )
-                );
-              }
-            }}
-          >
-            <option value="">Selecciona una sesión</option>
-            {sessions
-              .filter((session) => session.GroupName === product.ProductName)
-              .map((session) => (
-                <option key={session.SessionId} value={session.SessionId}>
-                  {new Date(session.SessionTime).toLocaleString()}
-                </option>
-              ))}
-          </select>
-        </div>
-      )}
-    </div>
-  );
-})}
+                        const selectedSession = sessions.find(
+                          (session) => session.SessionId === selectedSessionId
+                        );
+                        if (selectedSession) {
+                          addToCart(
+                            {
+                              ProductId: product.ProductId,
+                              ProductName: product.ProductName,
+                            },
+                            selectedDate.toLocaleDateString(),
+                            {
+                              TicketId: product.Tickets[0]?.TicketId,
+                              SessionId: selectedSession.SessionId,
+                              SessionTime: selectedSession.SessionTime,
+                            }
+                          );
+                        }
+                      } else {
+                        addToCart(
+                          {
+                            ProductId: product.ProductId,
+                            ProductName: product.ProductName,
+                          },
+                          selectedDate.toLocaleDateString()
+                        );
+                      }
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
+              {/* Mostrar dropdown de sesiones si el producto tiene sesiones */}
+              {product.HasSessions && (
+                <div className="mt-4">
+                  <select
+                    className="border p-2 rounded w-full text-black"
+                    onChange={(e) => setSelectedSessionId(e.target.value)}
+                  >
+                    <option value="">Selecciona una sesión</option>
+                    {sessions
+                      .filter((session) => {
+                        const sessionDate = new Date(session.SessionTime)
+                          .toISOString()
+                          .split("T")[0];
+                        const selectedDateString = selectedDate
+                          ?.toISOString()
+                          .split("T")[0];
+                        return sessionDate === selectedDateString;
+                      })
+                      .map((session) => (
+                        <option
+                          key={session.SessionId}
+                          value={session.SessionId}
+                        >
+                          {new Date(session.SessionTime).toLocaleString()}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 };
+
 
 type CheckoutProps = {
   cart: CartItem[];
-  onConfirm: (formData: any) => void;
+  onConfirm: any;
   transactionLoading: boolean;
+  minutesToExpiry: number | null;
+  paymentMethods: any[];
+  selectedPaymentMethod: PaymentMethod | null;
+  setSelectedPaymentMethod: React.Dispatch<React.SetStateAction<PaymentMethod | null>>;
 };
 
-const Checkout = ({ cart, onConfirm, transactionLoading }: CheckoutProps) => {
+const Checkout = ({
+  cart,
+  onConfirm,
+  transactionLoading,
+  minutesToExpiry,
+  paymentMethods,
+  selectedPaymentMethod,
+  setSelectedPaymentMethod,
+}: CheckoutProps) => {
   const handleSubmit = (event: any) => {
     event.preventDefault();
     const formData = new FormData(event.target);
@@ -876,10 +1101,14 @@ const Checkout = ({ cart, onConfirm, transactionLoading }: CheckoutProps) => {
     <div className="container mx-auto p-4">
       <header className="text-center mb-8">
         <h1 className="text-3xl font-bold">Confirmar tu Reserva</h1>
+        {minutesToExpiry !== null && (
+          <CountdownTimer minutes={minutesToExpiry} />
+        )}
       </header>
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-4">
+          {/* Datos personales */}
           <section className="border rounded p-4">
             <h2 className="text-lg font-semibold mb-4">
               Rellena tus datos personales
@@ -923,27 +1152,65 @@ const Checkout = ({ cart, onConfirm, transactionLoading }: CheckoutProps) => {
             </div>
           </section>
 
+          {/* Métodos de pago */}
           <section className="border rounded p-4">
             <h2 className="text-lg font-semibold mb-4">
               Selecciona un método de pago
             </h2>
-            <div>
-              <label>
-                <input
-                  type="radio"
-                  name="payment"
-                  value="Tarjeta bancaria"
-                  required
-                />{" "}
-                Tarjeta bancaria
-              </label>
-              <label className="ml-4">
-                <input type="radio" name="payment" value="Bizum" required />{" "}
-                Bizum
-              </label>
-            </div>
+
+            {paymentMethods.length > 0 ? (
+              <div>
+                {paymentMethods.map((method) => (
+                  <label key={method.Type} className="block mb-2">
+                    <input
+                      type="radio"
+                      name="payment"
+                      value={method.Name}
+                      onChange={() => setSelectedPaymentMethod(method)}
+                      required
+                    />{" "}
+                    {method.Name}
+                  </label>
+                ))}
+
+                {/* Mostrar información dinámica del método seleccionado */}
+                {selectedPaymentMethod && (
+                  <div className="mt-4 p-4 border rounded bg-gray-100 text-black">
+                    <h3 className="text-md font-bold">
+                      Detalles del Método de Pago
+                    </h3>
+                    <p>
+                      Has seleccionado: <strong>{selectedPaymentMethod.Name}</strong>
+                    </p>
+                    {selectedPaymentMethod.Name === "Tarjeta bancaria" && (
+                      <div>
+                        <p>
+                          Recibirás un correo donde serás redirigido para completar
+                          el pago con tarjeta.
+                        </p>
+                      </div>
+                    )}
+                    {selectedPaymentMethod.Name === "Paypal" && (
+                      <div>
+                        <p>
+                          Recibirás un correo donde serás redirigido a la página de Paypal para completar
+                          el pago.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p>Cargando métodos de pago...</p>
+            )}
           </section>
 
+            <div className="container mx-auto p-4 w-full flex justify-center items-center">
+            <ChatBotModal />
+            </div>
+
+          {/* Condiciones generales */}
           <section className="border rounded p-4">
             <h2 className="text-lg font-semibold mb-4">
               Condiciones generales
@@ -970,6 +1237,40 @@ const Checkout = ({ cart, onConfirm, transactionLoading }: CheckoutProps) => {
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+const CountdownTimer = ({ minutes }: { minutes: number }) => {
+  const [timeLeft, setTimeLeft] = useState(minutes * 60); // Convertir a segundos
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Formatear el tiempo en minutos y segundos
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="text-center mt-4">
+      <h2 className="text-lg font-semibold">Tiempo Restante</h2>
+      <p className="text-2xl font-bold">{formatTime(timeLeft)}</p>
     </div>
   );
 };

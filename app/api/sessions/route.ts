@@ -41,6 +41,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       throw new Error(data.ErrorMessage || "API response was unsuccessful.");
     }
 
+   /*  console.log("Fetched all sessions data successfully from api/sessions", data); */
+
     // Filtrar los datos para incluir solo los SessionsGroupIds requeridos
     const filteredSessions = data.SessionsGroupProfiles?.filter((profile: any) =>
       profile.SessionsGroups?.some((group: any) =>

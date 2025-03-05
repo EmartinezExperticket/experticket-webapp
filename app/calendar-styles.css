@@ -1,0 +1,46 @@
+/* Base style for the calendar */
+.react-calendar {
+    background-color: black;
+    border: 1px solid white;
+    border-radius: 8px;
+    padding: 16px;
+    color: white;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  /* Style for the calendar tiles (days) */
+/*   .react-calendar__tile {
+    background-color: black;
+    border: 1px solid white;
+    color: white;
+    border-radius: 4px;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+  } */
+  
+  /* Style for the selected day */
+  .react-calendar__tile--active {
+    /* background-color: white; */
+    color: black;
+    font-weight: bold;
+    border: 1px solid black;
+  }
+  
+  /* Remove default hover effect and add a custom one */
+  .react-calendar__tile:hover {
+    border: 1px solid white;
+    color: black;
+  }
+  
+  /* Ensure no special style for weekends */
+  .react-calendar__month-view__days__day--weekend {
+    color: white;
+  }
+  
+/*   .react-calendar__tile--disabled {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.5; 
+  }
+   */

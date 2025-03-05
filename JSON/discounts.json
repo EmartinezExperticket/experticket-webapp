@@ -1,0 +1,19 @@
+{
+  "discounts": [
+    {
+      "couponId": "DESC10",
+      "discountValue": "10%",
+      "criteria": "Usuario debe argumentar que es un cliente frecuente o leal."
+    },
+    {
+      "couponId": "VIP20",
+      "discountValue": "20%",
+      "criteria": "Usuario menciona que está comprando entradas para un evento grande o exclusivo."
+    },
+    {
+      "couponId": "OFERTA5",
+      "discountValue": "$5",
+      "criteria": "Usuario dice que recomendará el servicio a amigos."
+    }
+  ]
+}
